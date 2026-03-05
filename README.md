@@ -65,3 +65,11 @@ For detailed setup and startup instructions for the demo app, refer to `demo_app
 
 - Dataset: [mito-w/CosmosReason2-dataset](https://huggingface.co/datasets/mito-w/CosmosReason2-dataset/tree/main)
 - Model: [mito-w/CosmosReason2](https://huggingface.co/mito-w/CosmosReason2/tree/main)
+
+## 5. Demo Video
+
+<video src="resources/demo_movie.mp4" controls width="960">
+  Your environment does not support embedded video playback.
+</video>
+
+If embedded playback is not available, open [demo video](resources/demo_movie.mp4).

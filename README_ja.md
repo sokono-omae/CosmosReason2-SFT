@@ -65,3 +65,11 @@ docker run -it --rm --name=cosmos-reason2-2b \
 
 - 使用データセット: [mito-w/CosmosReason2-dataset](https://huggingface.co/datasets/mito-w/CosmosReason2-dataset/tree/main)
 - 使用モデル: [mito-w/CosmosReason2](https://huggingface.co/mito-w/CosmosReason2/tree/main)
+
+## 5. デモ動画
+
+<video src="resources/demo_movie.mp4" controls width="960">
+  お使いの環境では動画埋め込み表示に対応していません。
+</video>
+
+埋め込み再生できない場合は、[デモ動画を開く](resources/demo_movie.mp4) から再生してください。

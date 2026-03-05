@@ -87,4 +87,4 @@ pp_size = 1
 max_response_length = 128
 
 [custom.vision]
-fps = 5.0
+nframes = 75

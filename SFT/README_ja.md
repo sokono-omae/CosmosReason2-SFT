@@ -2,6 +2,8 @@
 
 このREADMEは、 Cosmos-Reason2 のSFT実行環境を構築する手順です。
 
+> 学習に必要なマシン要件は、公式の Cosmos-Reason2 の [Tested Platforms](https://github.com/nvidia-cosmos/cosmos-reason2/tree/main?tab=readme-ov-file#tested-platforms) を参照してください。
+
 ## 1. Docker イメージの取得と起動
 
 ```bash

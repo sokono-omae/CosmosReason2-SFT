@@ -2,6 +2,8 @@
 
 This README describes how to set up an environment for Cosmos-Reason2 SFT.
 
+> For machine requirements needed for training, please refer to the official Cosmos-Reason2 [Tested Platforms](https://github.com/nvidia-cosmos/cosmos-reason2/tree/main?tab=readme-ov-file#tested-platforms).
+
 ## 1. Pull and run the Docker image
 
 ```bash

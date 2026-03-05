@@ -1,8 +1,8 @@
 # CosmosReason2 SFT Environment Setup (Docker)
 
-このREADMEは、 Cosmos-Reason2 のSFT実行環境を構築する手順です。
+This README describes how to set up an environment for Cosmos-Reason2 SFT.
 
-## 1. Docker イメージの取得と起動
+## 1. Pull and run the Docker image
 
 ```bash
 docker pull nvcr.io/nvidia/pytorch:25.03-py3
@@ -14,11 +14,11 @@ docker run --gpus all -it --rm \
   nvcr.io/nvidia/pytorch:25.03-py3
 ```
 
-- コンテナ内の作業ディレクトリは `/workspace` を前提にしています。
-- `-v /your/local/workspace:/workspace` の `/your/local/workspace` は、ホスト側の実際の作業ディレクトリに置き換えてください。
-- 本スクリプトは `apt-get` を実行するため、rootユーザーでの実行が必要です（上記コンテナ起動なら通常root）。
+- The working directory inside the container is assumed to be `/workspace`.
+- Replace `/your/local/workspace` in `-v /your/local/workspace:/workspace` with your actual host-side working directory.
+- This script runs `apt-get`, so it must be executed as root (typically root by default in the container command above).
 
-## 2. リポジトリをクローン
+## 2. Clone the repository
 
 ```bash
 cd /workspace
@@ -26,19 +26,19 @@ git clone https://github.com/sokono-omae/CosmosReason2-SFT.git
 cd /workspace/CosmosReason2-SFT/SFT
 ```
 
-## 3. `.env` を作成
+## 3. Create `.env`
 
-`/workspace/CosmosReason2-SFT/SFT/.env` を作成し、以下を設定してください。
+Create `/workspace/CosmosReason2-SFT/SFT/.env` and set:
 
 ```bash
 HF_TOKEN=hf_xxxxxxxxxxxxxxxxxxxxxxxxx
 WANDB_API_KEY=xxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-- `HF_TOKEN`: Hugging Face へのログインに使用
-- `WANDB_API_KEY`: Weights & Biases へのログインに使用
+- `HF_TOKEN`: Used for Hugging Face login
+- `WANDB_API_KEY`: Used for Weights & Biases login
 
-## 4. セットアップスクリプトを実行
+## 4. Run the setup script
 
 ```bash
 cd /workspace/CosmosReason2-SFT/SFT
@@ -46,20 +46,20 @@ chmod +x setup_cosmos-reason2_post-training.sh
 source setup_cosmos-reason2_post-training.sh
 ```
 
-このスクリプトは以下を実施します。
+This script performs:
 
-1. システム依存パッケージのインストール（`ffmpeg`, `git-lfs`, `redis-server` など）
-2. `uv` のインストール
-3. `nvidia-cosmos/cosmos-reason2` を **`/workspace/cosmos-reason2`** にクローン
-4. `cosmos-reason2` 本体と `examples/cosmos_rl` の依存解決
-5. Hugging Face / W&B ログイン
-6. `grouped_gemm` の追加インストール
-7. `SFT/llava_sft.toml` を  
-   `/workspace/cosmos-reason2/examples/cosmos_rl/configs/llava_sft.toml` にコピー（置換）
+1. Installs system dependencies (`ffmpeg`, `git-lfs`, `redis-server`, etc.)
+2. Installs `uv`
+3. Clones `nvidia-cosmos/cosmos-reason2` to **`/workspace/cosmos-reason2`**
+4. Resolves dependencies for `cosmos-reason2` and `examples/cosmos_rl`
+5. Logs in to Hugging Face / W&B
+6. Installs `grouped_gemm`
+7. Copies (replaces) `SFT/llava_sft.toml` to  
+   `/workspace/cosmos-reason2/examples/cosmos_rl/configs/llava_sft.toml`
 
-## 5. Hugging Face データセットを `/workspace` 直下に取得
+## 5. Download the Hugging Face dataset under `/workspace`
 
-対象データセット:
+Target dataset:
 - `mito-w/CosmosReason2-dataset`
 
 ```bash
@@ -68,19 +68,19 @@ git lfs install
 git clone https://huggingface.co/datasets/mito-w/CosmosReason2-dataset
 ```
 
-> 代替手段（`git clone` が難しい環境）  
+> Alternative (for environments where `git clone` is difficult):  
 > `huggingface-cli download mito-w/CosmosReason2-dataset --repo-type dataset --local-dir /workspace/CosmosReason2-dataset`
 
-## 6. 学習開始例
+## 6. Training command example
 
 ```bash
 cd /workspace/cosmos-reason2/examples/cosmos_rl
 source .venv/bin/activate
 uv run cosmos-rl --config configs/llava_sft.toml --log-dir outputs/llava_sft scripts/llava_sft.py
 ```
-学習結果は`/workspace/results/llava_sft_output`に保存されます。
+Training outputs are saved to `/workspace/results/llava_sft_output`.
 
-## 参考
+## References
 
 - [sokono-omae/CosmosReason2-SFT](https://github.com/sokono-omae/CosmosReason2-SFT.git)
 - [nvidia-cosmos/cosmos-reason2](https://github.com/nvidia-cosmos/cosmos-reason2.git)

@@ -37,6 +37,14 @@ uv sync
 uv run python run_fastapi_uvicorn.py
 ```
 
+You can also configure startup options:
+
+```bash
+export MODEL="your-model" 
+export BASE_URL="http://localhost:8000/v1" 
+uv run python run_fastapi_uvicorn.py
+```
+
 Open http://localhost:8001 in your browser.
 
 
@@ -44,9 +52,9 @@ Open http://localhost:8001 in your browser.
 
 You can edit settings in the UI under “Hyperparameters & API settings” (collapsed by default), or via environment variables:
 
-- `API_BASE_URL`
+- `BASE_URL`
 - `API_KEY`
-- `MODEL`
+- `MODEL` (required)
 - `MAX_TOKENS`
 - `TEMPERATURE`
 - `JPEG_QUALITY`

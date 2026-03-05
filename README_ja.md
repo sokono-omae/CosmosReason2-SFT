@@ -61,15 +61,6 @@ docker run -it --rm --name=cosmos-reason2-2b \
 
 デモアプリの詳細なセットアップ・起動方法は `demo_app/README.md` を参照してください。
 
-最低限の実行コマンド:
-
-```bash
-cd demo_app
-uv venv
-uv sync
-uv run python run_fastapi_uvicorn.py
-```
-
 ## 4. 使用データ・使用モデル配布先
 
 - 使用データセット: [mito-w/CosmosReason2-dataset](https://huggingface.co/datasets/mito-w/CosmosReason2-dataset/tree/main)

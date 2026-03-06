@@ -58,6 +58,10 @@ This script performs:
 6. Installs `grouped_gemm`
 7. Copies (replaces) `SFT/llava_sft.toml` to  
    `/workspace/cosmos-reason2/examples/cosmos_rl/configs/llava_sft.toml`
+8. Copies (replaces) `SFT/llava_sft.py` to  
+   `/workspace/cosmos-reason2/examples/cosmos_rl/scripts/llava_sft.py`
+
+Note: The original upstream `llava_sft.py` has an issue when training data contains only videos, so this repository replaces it with a patched version.
 
 ## 5. Download the Hugging Face dataset under `/workspace`
 

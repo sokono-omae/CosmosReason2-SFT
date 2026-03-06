@@ -58,6 +58,10 @@ source setup_cosmos-reason2_post-training.sh
 6. `grouped_gemm` の追加インストール
 7. `SFT/llava_sft.toml` を  
    `/workspace/cosmos-reason2/examples/cosmos_rl/configs/llava_sft.toml` にコピー（置換）
+8. `SFT/llava_sft.py` を  
+   `/workspace/cosmos-reason2/examples/cosmos_rl/scripts/llava_sft.py` にコピー（置換）
+
+※ 公式（オリジナル）の `llava_sft.py` は、学習データを動画のみで構成した場合に不具合が発生するため、本リポジトリでは修正版に差し替えています。
 
 ## 5. Hugging Face データセットを `/workspace` 直下に取得
 

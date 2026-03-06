@@ -13,6 +13,8 @@ WORKSPACE_ROOT="$(cd "${PROJECT_ROOT}/.." && pwd)"
 COSMOS_REASON2_DIR="${WORKSPACE_ROOT}/cosmos-reason2"
 SFT_LLAVA_TOML="${SCRIPT_DIR}/llava_sft.toml"
 COSMOS_LLAVA_TOML="${COSMOS_REASON2_DIR}/examples/cosmos_rl/configs/llava_sft.toml"
+SFT_LLAVA_SCRIPT="${SCRIPT_DIR}/llava_sft.py"
+COSMOS_LLAVA_SCRIPT="${COSMOS_REASON2_DIR}/examples/cosmos_rl/scripts/llava_sft.py"
 
 echo "[path] SCRIPT_DIR=${SCRIPT_DIR}"
 echo "[path] PROJECT_ROOT=${PROJECT_ROOT}"
@@ -137,5 +139,20 @@ if [ ! -d "$(dirname "${COSMOS_LLAVA_TOML}")" ]; then
 fi
 cp -f "${SFT_LLAVA_TOML}" "${COSMOS_LLAVA_TOML}"
 echo "[config] replaced ${COSMOS_LLAVA_TOML}"
+
+# ----------------------------
+# copy SFT llava script
+# ----------------------------
+echo "[config] copy custom llava_sft.py"
+if [ ! -f "${SFT_LLAVA_SCRIPT}" ]; then
+  echo "ERROR: source script not found: ${SFT_LLAVA_SCRIPT}"
+  exit 1
+fi
+if [ ! -d "$(dirname "${COSMOS_LLAVA_SCRIPT}")" ]; then
+  echo "ERROR: target script directory not found: $(dirname "${COSMOS_LLAVA_SCRIPT}")"
+  exit 1
+fi
+cp -f "${SFT_LLAVA_SCRIPT}" "${COSMOS_LLAVA_SCRIPT}"
+echo "[config] replaced ${COSMOS_LLAVA_SCRIPT}"
 
 echo "=== cosmos-reason2 setup completed ==="

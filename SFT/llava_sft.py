@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # SPDX-FileCopyrightText: Copyright (c) 2025 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 # SPDX-License-Identifier: Apache-2.0
 #
@@ -13,7 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""SFT adapter for llava-format datasets."""
+"""SFT adapter for llava-format datasets with optional custom validation dataset."""
 
 import argparse
 import base64
@@ -21,6 +22,7 @@ import json
 import os
 import re
 from pathlib import Path
+from typing import Any, Optional
 
 import cosmos_rl.launcher.worker_entry
 import cosmos_rl.policy.config
@@ -34,11 +36,23 @@ from cosmos_rl.utils.logging import logger
 
 class CustomDatasetConfig(pydantic.BaseModel):
     annotation_path: str = pydantic.Field()
-    """Dataset annotation path."""
+    """Training annotation path."""
+
     media_path: str = pydantic.Field(default="")
-    """Dataset media path."""
+    """Training media root path."""
+
+    # Optional custom validation dataset paths.
+    val_annotation_path: str = pydantic.Field(default="")
+    """Validation annotation path."""
+
+    val_media_path: str = pydantic.Field(default="")
+    """Validation media root path. If empty, media_path is used."""
+
     system_prompt: str = pydantic.Field(default="")
     """System prompt for post-training."""
+
+    val_system_prompt: str = pydantic.Field(default="")
+    """Validation system prompt. If empty, system_prompt is used."""
 
 
 class CustomConfig(pydantic.BaseModel):
@@ -56,15 +70,17 @@ class CustomConfig(pydantic.BaseModel):
 class CustomDataset(torch.utils.data.Dataset):
     def __init__(
         self,
-        config: cosmos_rl.policy.config.Config,
-        custom_config: CustomConfig,
+        annotation_path: str,
+        media_path: str,
+        system_prompt: str,
+        vision_kwargs: dict[str, Any],
     ):
-        self.annotation = json.load(open(custom_config.dataset.annotation_path))
-        self.media_path = custom_config.dataset.media_path
-        self.system_prompt = custom_config.dataset.system_prompt
-        self.config = config
-        self.custom_config = custom_config
-        self.vision_kwargs = custom_config.vision.model_dump(exclude_none=True)
+        with open(annotation_path, encoding="utf-8") as f:
+            self.annotation = json.load(f)
+        self.annotation_path = annotation_path
+        self.media_path = media_path
+        self.system_prompt = system_prompt
+        self.vision_kwargs = vision_kwargs
 
     def __len__(self):
         return len(self.annotation)
@@ -72,11 +88,13 @@ class CustomDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx: int) -> list[dict]:
         try:
             sample = self.annotation[idx]
-
             user_prompt = sample["conversations"][0]["value"]
             response = sample["conversations"][1]["value"]
         except (KeyError, IndexError) as e:
-            logger.error(f"Missing required field in sample at index {idx}: {e}")
+            logger.error(
+                f"Missing required field in sample at index {idx} "
+                f"(annotation={self.annotation_path}): {e}"
+            )
             logger.error(f"Sample keys: {list(sample.keys())}")
             raise
 
@@ -86,28 +104,28 @@ class CustomDataset(torch.utils.data.Dataset):
         videos = sample.get("video", None)
         if videos and isinstance(videos, str):
             videos = [videos]
-        
-        images = images or [] #
-        videos = videos or [] #
 
-        # If self.media_path is not empty, join it with each image/video path
+        images = images or []
+        videos = videos or []
+
         if self.media_path != "":
             if images:
                 images = [os.path.join(self.media_path, img) for img in images]
             if videos:
                 videos = [os.path.join(self.media_path, vid) for vid in videos]
 
-        # cosmos-rl expects base64 encoded images
         for i, image in enumerate(images):
             try:
-                images[i] = base64.b64encode(open(image, "rb").read())
+                with open(image, "rb") as f:
+                    images[i] = base64.b64encode(f.read())
             except (OSError, FileNotFoundError) as e:
                 logger.error(
-                    f"Failed to read image file at sample index {idx}, image index {i}: {e}"
+                    f"Failed to read image file at sample index {idx}, "
+                    f"image index {i}: {e}"
                 )
                 raise
 
-        # Remove image and video tags from user prompt
+        # Remove image/video tags from prompt; media is passed separately.
         user_prompt = re.sub(r"(\n)?</?(image|video)>(\n)?", "", user_prompt)
 
         conversations = create_conversation(
@@ -121,45 +139,100 @@ class CustomDataset(torch.utils.data.Dataset):
         return conversations
 
 
+def build_dataset(
+    *,
+    annotation_path: str,
+    media_path: str,
+    system_prompt: str,
+    vision_kwargs: dict[str, Any],
+) -> CustomDataset:
+    dataset = CustomDataset(
+        annotation_path=annotation_path,
+        media_path=media_path,
+        system_prompt=system_prompt,
+        vision_kwargs=vision_kwargs,
+    )
+    if len(dataset) == 0:
+        raise ValueError(f"Dataset is empty: {annotation_path}")
+    # Early fail-fast validation of schema/path issues.
+    dataset[0]
+    return dataset
+
+
+def wandb_validation_alias_logger(report_data: dict[str, Any], step: int) -> None:
+    """Alias cosmos-rl validation metric to validation_loss in wandb."""
+    if "val/avg_loss" not in report_data:
+        return
+    try:
+        import wandb  # pylint: disable=import-outside-toplevel
+    except ImportError:
+        return
+    if wandb.run is None:
+        return
+    wandb.log({"validation_loss": report_data["val/avg_loss"]}, step=step)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--config", type=str, required=True, help="Path to config file."
-    )
+    parser.add_argument("--config", type=str, required=True, help="Path to config file.")
     args = parser.parse_known_args()[0]
 
-    # Load config
-    with open(args.config) as f:
+    with open(args.config, encoding="utf-8") as f:
         config_kwargs = toml.load(f)
     config = cosmos_rl.policy.config.Config.from_dict(config_kwargs)
     custom_config = CustomConfig.model_validate(config_kwargs["custom"])
+
     custom_config.vision.total_pixels = int(
         config.policy.model_max_length * PIXELS_PER_TOKEN * 0.9
     )
+    vision_kwargs = custom_config.vision.model_dump(exclude_none=True)
 
-    # Log
     role = os.environ.get("COSMOS_ROLE")
     is_controller = role == "Controller"
     if is_controller:
         output_dir = Path(config.train.output_dir).resolve().parent
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        # Save config
-        config_kwargs = config.model_dump()
-        config_kwargs["custom"] = custom_config.model_dump()
+        # Save resolved config.
+        config_dump = config.model_dump()
+        config_dump["custom"] = custom_config.model_dump()
         config_path = output_dir / "config.toml"
-        config_path.write_text(toml.dumps(config_kwargs))
+        config_path.write_text(toml.dumps(config_dump), encoding="utf-8")
         logger.info(f"Saved config to {config_path}")
 
-    # Load dataset
-    dataset = CustomDataset(
-        config=config,
-        custom_config=custom_config,
+    train_dataset = build_dataset(
+        annotation_path=custom_config.dataset.annotation_path,
+        media_path=custom_config.dataset.media_path,
+        system_prompt=custom_config.dataset.system_prompt,
+        vision_kwargs=vision_kwargs,
     )
-    # Check dataset
-    dataset[0]
+    logger.info(f"Loaded training dataset: size={len(train_dataset)}")
 
-    # Launch worker
+    val_dataset: Optional[CustomDataset] = None
+    if custom_config.dataset.val_annotation_path:
+        val_dataset = build_dataset(
+            annotation_path=custom_config.dataset.val_annotation_path,
+            media_path=custom_config.dataset.val_media_path
+            or custom_config.dataset.media_path,
+            system_prompt=custom_config.dataset.val_system_prompt
+            or custom_config.dataset.system_prompt,
+            vision_kwargs=vision_kwargs,
+        )
+        logger.info(f"Loaded validation dataset: size={len(val_dataset)}")
+    elif config.validation.enable:
+        logger.warning(
+            "validation.enable=true but custom.dataset.val_annotation_path is empty. "
+            "Training will run without your custom validation dataset."
+        )
+
+    if val_dataset is not None and not config.validation.enable:
+        logger.warning(
+            "Validation dataset is provided but validation.enable=false. "
+            "Set validation.enable=true to compute/log validation metrics."
+        )
+
     cosmos_rl.launcher.worker_entry.main(
-        dataset=dataset,
+        dataset=train_dataset,
+        val_dataset=val_dataset,
+        custom_logger_fns=[wandb_validation_alias_logger],
     )

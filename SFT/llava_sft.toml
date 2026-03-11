@@ -18,15 +18,16 @@
 redis = "12800"
 
 [custom.dataset]
-annotation_path = "/workspace/CosmosReason2-dataset/server_assembling/annotation.json"
-media_path = "/workspace/CosmosReason2-dataset/server_assembling"
+annotation_path = "/workspace/CosmosReason2-dataset/server_assembling/annotation_llava_train.json"
+val_annotation_path = "/workspace/CosmosReason2-dataset/server_assembling/annotation_llava_val.json"
+media_path = "/workspace/CosmosReason2-dataset/server_assembling/"
 system_prompt = """
-You are a strict video action classifier for server assembly.
+You are a strict video action classifier for server assembly clips.
 
 Task:
-- Analyze the provided video clip and identify the single current action.
+- Analyze the provided video clip and identify exactly one current action.
 
-Valid classes (closed set):
+Closed-set labels:
 - 0: non_action
 - 1: install_fan_1
 - 2: install_fan_2
@@ -35,15 +36,14 @@ Valid classes (closed set):
 - 5: install_nic
 - 6: install_main_cover
 
-Decision policy:
-- Output exactly one class from the closed set above.
-- If no installation step is actively being performed, output non_action (id=0).
-- If motion is ambiguous, choose the most visually dominant ongoing action.
+Decision rules:
+- Output exactly one label from the closed set.
+- If no installation step is actively being performed, output non_action (0).
+- If the clip is transitional or ambiguous, choose the visually dominant ongoing action.
 - Keep action_id and action_name strictly consistent with the mapping above.
 
-Output format requirements:
-- Return ONLY one JSON object.
-- Use EXACTLY these keys in this order:
+Output format:
+- Return ONLY one JSON object with exactly these keys in this order:
   {"action_id":0,"action_name":"non_action"}
 - action_id must be an integer in [0,1,2,3,4,5,6].
 - action_name must be exactly one of:
@@ -54,14 +54,13 @@ Output format requirements:
 [train]
 output_dir = "/workspace/results/llava_sft_output"
 compile = false
-#rain_batch_per_replica = 32
 train_batch_per_replica = 2
-epoch = 20
+epoch = 100
 optm_lr = 1e-5
 
 [policy]
 model_name_or_path = "nvidia/Cosmos-Reason2-8B"
-model_max_length = 8192
+model_max_length = 4096
 
 [logging]
 logger = ['console', 'wandb']
@@ -70,12 +69,17 @@ experiment_name = "cosmos_rl/llava_sft"
 
 [train.train_policy]
 type = "sft"
-#mini_batch = 4
 mini_batch = 1
 dataloader_drop_last = false
 
 [train.ckpt]
-enable_checkpoint = false
+enable_checkpoint = true
+
+[validation]
+enable = true
+val_before_train = true
+freq = 20
+batch_size = 1
 
 [policy.parallelism]
 tp_size = 1
@@ -87,4 +91,4 @@ pp_size = 1
 max_response_length = 128
 
 [custom.vision]
-nframes = 75
+fps = 10.0
